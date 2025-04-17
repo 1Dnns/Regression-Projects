@@ -154,22 +154,58 @@ def categorizar_y_graficar(df, columna_categorica, columna_respuesta, margen_tol
 
 ##############################################################################
 
-def categorizaciones(datos_num, variable_independiente):
-    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+def analizar_columna_cat(df_1, df_2, columna):
+    sns.set_style("whitegrid")
+    palette = sns.color_palette("pastel")
 
-    # Definir los márgenes de tolerancia
-    margenes_tolerancia = [0.1, 0.2, 0.3, 0.4]
+    # Crear figura con dos subplots lado a lado
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 
-    # Generar cada gráfico en su respectivo subplot
-    grupos_por_margen = {}
-    for i, margen in enumerate(margenes_tolerancia):
-        ax = axes[i // 2, i % 2]  # Seleccionar el subplot actual
-        grupos = categorizar_y_graficar(datos_num, variable_independiente, 'SalePrice', margen_tolerancia=margen, ax=ax)
-        grupos_por_margen[f'Margen {margen * 100}%'] = grupos
+    # --- Subplot 1: Histograma ---
+    ax1 = axes[0]
+    sns.histplot(
+        df_2[columna],
+        ax=ax1,
+        color=palette[0],
+        edgecolor='white',
+        linewidth=0.5,
+        alpha=0.8
+    )
 
+    for p in ax1.patches:
+        height = p.get_height()
+        if height > 0:
+            ax1.annotate(
+                f'{int(height)}',
+                (p.get_x() + p.get_width() / 2., height),
+                ha='center',
+                va='center',
+                xytext=(0, 5),
+                textcoords='offset points',
+                fontsize=10,
+                color='black'
+            )
+
+    ax1.set_title(f"Distribución de {columna}", fontsize=14, fontweight='bold', color='darkblue')
+    ax1.set_xlabel(columna, fontsize=12)
+    ax1.set_ylabel("Frecuencia", fontsize=12)
+    ax1.grid(True, linestyle='--', alpha=0.7)
+
+    # --- Subplot 2: Scatterplot ---
+    ax2 = axes[1]
+    sns.scatterplot(
+        x=df_2[columna],
+        y=df_1['SalePrice'],
+        ax=ax2,
+        color=palette[0],
+        alpha=0.7
+    )
+
+    ax2.set_title(f"Relación entre {columna} y SalePrice", fontsize=14, fontweight='bold', color='darkblue')
+    ax2.set_xlabel(columna, fontsize=12, color='darkblue')
+    ax2.set_ylabel('SalePrice', fontsize=12, color='darkblue')
+    ax2.grid(True, linestyle='--', alpha=0.7)
+
+    # Ajustar el layout para evitar que se sobrepongan los elementos
     plt.tight_layout()
     plt.show()
-
-    for margen, grupos in grupos_por_margen.items():
-        print(f"{margen}: {grupos}")
-    return grupos
