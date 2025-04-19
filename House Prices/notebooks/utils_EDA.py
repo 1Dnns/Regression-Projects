@@ -1,8 +1,12 @@
 import pandas as pd
 import numpy as np 
+
 import seaborn as sns
 import matplotlib.pyplot as plt
+
 from scipy.stats import boxcox
+import scipy.stats as stats
+from scikit_posthocs import posthoc_dunn
 
 ##############################################################################
 
@@ -209,3 +213,142 @@ def analizar_columna_cat(df_1, df_2, columna):
     # Ajustar el layout para evitar que se sobrepongan los elementos
     plt.tight_layout()
     plt.show()
+
+##############################################################################
+
+def grafico_catg(df_1, df_2, columna):
+    df = pd.DataFrame({
+    'Categoria': df_2[columna],  # Tu columna categórica
+    'SalePrice': df_1['SalePrice']       # Variable objetivo
+    })
+    # Configuración del estilo
+    sns.set_style("whitegrid")
+    palette = sns.color_palette("pastel")
+
+    # 1. Calcular frecuencias por categoría
+    frecuencias = df['Categoria'].value_counts().sort_index()
+
+    # 2. Crear la figura
+    plt.figure(figsize=(14, 8))
+
+    # 3. Crear el gráfico de cajas con estilo mejorado
+    ax = sns.boxplot(
+        data=df, 
+        x='Categoria', 
+        y='SalePrice',
+        palette=palette,
+        width=0.6,
+        linewidth=1.5,
+        fliersize=4
+    )
+
+    # 4. Añadir las frecuencias como anotaciones con estilo mejorado
+    for i, categoria in enumerate(frecuencias.index):
+        ax.text(
+            i, 
+            df['SalePrice'].max() * 1.02, 
+            f'n = {frecuencias[categoria]}', 
+            ha='center', 
+            va='bottom', 
+            fontsize=11,
+            fontweight='bold',
+            color='darkblue',
+            bbox=dict(facecolor='white', alpha=0.8, edgecolor='none', boxstyle='round,pad=0.3')
+        )
+
+    # 5. Personalización del gráfico
+    plt.title(
+        f'Distribución de {columna} por Categoría\n(Frecuencia de observaciones)', 
+        fontsize=14, 
+        fontweight='bold', 
+        color='darkblue',
+        pad=20
+    )
+
+    plt.xlabel(f'{columna}', fontsize=12, color='darkblue')
+    plt.ylabel('SalePrice', fontsize=12, color='darkblue')
+    plt.xticks(rotation=45, fontsize=10)
+    plt.yticks(fontsize=10)
+
+    # Añadir grid y ajustar límites
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.ylim(top=df['SalePrice'].max() * 1.07)  # Ajustar espacio superior
+
+
+    # Ajustar el layout
+    plt.tight_layout()
+    plt.show()
+
+##############################################################################
+
+def prueba_kruskal_wallis(df_1, df_2, columna):
+    df = pd.DataFrame({
+    'Categoria': df_2[columna],  # Tu columna categórica
+    'SalePrice': df_1['SalePrice']       # Variable objetivo
+    })
+
+    # 2. Realizar Kruskal-Wallis
+    grupos = [df[df['Categoria'] == cat]['SalePrice'] for cat in df['Categoria'].unique()]
+    stat, p_value = stats.kruskal(*grupos)
+
+    # Crear DataFrame para Kruskal-Wallis
+    kruskal_df = pd.DataFrame({
+        'Test': ['Kruskal-Wallis'],
+        'Estadístico (H)': [stat],
+        'p-valor': [p_value],
+        'Significativo (p < 0.05)': [p_value < 0.05],
+        'Interpretación': ['Hay diferencias significativas' if p_value < 0.05 
+                        else 'No hay diferencias significativas']
+    })
+
+    # 3. DataFrame para Dunn's test (inicialmente vacío)
+    dunn_df = pd.DataFrame()
+    recomendaciones_df = pd.DataFrame()
+
+    if p_value < 0.05:
+        # Calcular Dunn's test
+        dunn_results = posthoc_dunn(df, val_col='SalePrice', group_col='Categoria', p_adjust='bonferroni')
+        
+        # DataFrame con p-valores
+        dunn_df = pd.DataFrame(dunn_results)
+        
+        # DataFrame de recomendaciones
+        recomendaciones_df = dunn_df.applymap(
+            lambda x: "NO agrupar" if x < 0.05 else "Agrupar" if x != 1 else "-"
+        )
+
+    # --- FUNCIÓN DE ESTILO ---
+    def estilo_recomendaciones(df):
+        return df.style\
+            .applymap(lambda x: 'background-color: #FFCDD2; color: #B71C1C' if x == 'NO agrupar' 
+                    else 'background-color: #C8E6C9; color: #1B5E20' if x == 'Agrupar' 
+                    else 'background-color: #FFFFFF')\
+            .set_properties(**{
+                'text-align': 'center',
+                'font-size': '10px',
+                'padding': '3px',
+                'min-width': '30px'
+            })\
+            .set_table_styles([{
+                'selector': 'table',
+                'props': [('width', '70%'), ('margin', 'auto')]
+            }])\
+            .set_caption("Mapa de Recomendaciones de Agrupamiento (Dunn's Test)")
+
+    # --- SALIDA SIMPLIFICADA ---
+    print("="*80)
+    print("RESULTADOS KRUSKAL-WALLIS")
+    print("="*80)
+    print(kruskal_df.to_string(index=False))
+
+    if p_value < 0.05:
+        print("\n" + "="*80)
+        print("Se requiere Dunn's test (existen diferencias significativas entre categorías)")
+        print("="*80)
+        return (estilo_recomendaciones(recomendaciones_df))
+    else:
+        print("\n" + "="*80)
+        print("No se requiere Dunn's test (no hay diferencias significativas entre categorías)")
+        print("="*80)
+
+    
