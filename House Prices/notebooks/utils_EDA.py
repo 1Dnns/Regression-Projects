@@ -351,4 +351,15 @@ def prueba_kruskal_wallis(df_1, df_2, columna):
         print("No se requiere Dunn's test (no hay diferencias significativas entre categorías)")
         print("="*80)
 
+
+##############################################################################
+
+def matriz_correlacion(data, method='pearson'):
+    variables_corr = data.select_dtypes(include=['float64', 'int64']).columns.to_list()
+    correlation_matrix = data[variables_corr].corr(method=method)
     
+    plt.figure(figsize=(12, 10))  # Ajusta el tamaño según lo que necesites
+    sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap="Blues", square=True, linewidths=0.5)
+    plt.title(f'Matriz de Correlación ({method.capitalize()})')
+    plt.tight_layout()
+    plt.show()
