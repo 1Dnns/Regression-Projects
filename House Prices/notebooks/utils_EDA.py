@@ -8,6 +8,9 @@ from scipy.stats import boxcox
 import scipy.stats as stats
 from scikit_posthocs import posthoc_dunn
 
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import SimpleImputer, IterativeImputer, KNNImputer
+from sklearn.metrics import mean_squared_error
 ##############################################################################
 
 def analizar_columna_num(columna, datos_num):
@@ -363,3 +366,48 @@ def matriz_correlacion(data, method='pearson'):
     plt.title(f'Matriz de Correlación ({method.capitalize()})')
     plt.tight_layout()
     plt.show()
+
+##############################################################################
+
+def RMSE_imputaciones(data, name, n_neighbors=5):
+    # Paso 1: seleccionar solo columnas numéricas
+    data_num = data.select_dtypes(include=['float64', 'int64']).copy()
+
+    # Paso 2: eliminar filas con NaNs para tener datos completos
+    data_test = data_num.dropna()
+
+    # Paso 3: crear máscara aleatoria para introducir NaNs en la columna de interés
+    np.random.seed(123)
+    mask = np.random.rand(len(data_test)) < 0.1
+    data_with_nans = data_test.copy()
+    
+    # Guardar los valores verdaderos antes de imputar
+    true_values = data_with_nans.loc[mask, name]
+    data_with_nans.loc[mask, name] = np.nan
+
+    ### Imputación con mediana (solo para la columna específica)
+    imputer_median = SimpleImputer(strategy='median')
+    col_imputed_median = imputer_median.fit_transform(data_with_nans[[name]])
+    imputed_median_values = col_imputed_median[mask].ravel()
+
+    ### Imputación con IterativeImputer (usando todas las columnas)
+    imputer_iter = IterativeImputer(random_state=0)
+    data_imputed_iter = imputer_iter.fit_transform(data_with_nans)
+    data_imputed_iter = pd.DataFrame(data_imputed_iter, columns=data_test.columns)
+    imputed_iterative_values = data_imputed_iter.loc[mask, name]
+
+    ### Imputación con KNNImputer (usando todas las columnas)
+    imputer_knn = KNNImputer(n_neighbors=n_neighbors)
+    data_imputed_knn = imputer_knn.fit_transform(data_with_nans)
+    data_imputed_knn = pd.DataFrame(data_imputed_knn, columns=data_test.columns)
+    imputed_knn_values = data_imputed_knn.loc[mask, name]
+
+    ### Cálculo de RMSE
+    rmse_median = mean_squared_error(true_values, imputed_median_values) ** 0.5
+    rmse_iter = mean_squared_error(true_values, imputed_iterative_values) ** 0.5
+    rmse_knn = mean_squared_error(true_values, imputed_knn_values) ** 0.5
+
+    ### Mostrar resultados
+    print(f"RMSE imputación con Mediana:            {rmse_median:.4f}")
+    print(f"RMSE imputación con IterativeImputer:   {rmse_iter:.4f}")
+    print(f"RMSE imputación con KNNImputer (k={n_neighbors}): {rmse_knn:.4f}")
