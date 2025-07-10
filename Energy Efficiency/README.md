@@ -27,9 +27,7 @@ energy-efficiency-regression/
 │
 ├── src/
 │ ├── utils_EDA.py # Funciones para limpieza y transformación
-│ └── modeling.py # Funciones para entrenamiento y evaluación
 │
-├── requirements.txt
 └── README.md
 
 --- 
